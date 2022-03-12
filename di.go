@@ -83,7 +83,7 @@ func newRootNode(nodeType reflect.Type) *dNode {
 func (n *dNode) Value() (reflect.Value, error) {
 	n.mutex.Lock()
 	value, err := func() (reflect.Value, error) {
-		if n.value.IsValid() && !n.value.IsZero() {
+		if n.value.IsValid() {
 			return n.value, nil
 		}
 		numIn := n.constructor.Type().NumIn()
@@ -111,7 +111,7 @@ func (n *dNode) Value() (reflect.Value, error) {
 				if err != nil {
 					return fmt.Errorf(UnableToResolveDependencyCause, n.dType, err)
 				}
-				if !value.IsValid() || value.IsZero() {
+				if !value.IsValid() {
 					return fmt.Errorf(UnableToResolveDependency, n.dType)
 				}
 				arguments[index] = value
@@ -122,7 +122,7 @@ func (n *dNode) Value() (reflect.Value, error) {
 			return reflect.Value{}, err
 		}
 		n.value = n.constructor.Call(arguments)[0]
-		if !n.value.IsValid() || n.value.IsZero() {
+		if !n.value.IsValid() {
 			return reflect.Value{}, fmt.Errorf(UnableToResolveDependency, n.dType)
 		}
 		return n.value, nil
@@ -185,7 +185,7 @@ func NewApplicationContext(applicationContext interface{}, providers ...interfac
 	if err != nil {
 		panic(err)
 	}
-	if !value.IsValid() || value.IsZero() {
+	if !value.IsValid() {
 		panic("failed to resolve dependencies")
 	}
 	ptr := reflect.New(rootType)
