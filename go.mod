@@ -1,4 +1,4 @@
-module diingo
+module github.com/raf924/diingo
 
 go 1.17
 
