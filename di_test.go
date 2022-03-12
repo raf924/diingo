@@ -1,4 +1,4 @@
-package di
+package diingo
 
 import (
 	"fmt"

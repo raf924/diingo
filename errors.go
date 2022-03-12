@@ -1,4 +1,4 @@
-package di
+package diingo
 
 const MissingDependency = "missing dependency '%s'"
 const UnableToResolveDependency = "unable to resolve dependency '%s'"
