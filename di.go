@@ -24,7 +24,7 @@ type dependency struct {
 
 func (d *dependency) values(ctx context.Context) (reflect.Value, error) {
 	if len(d.nodes) == 0 {
-		return reflect.Value{}, fmt.Errorf(UnableToResolveDependency, d.dependencyType)
+		return reflect.MakeSlice(d.dependencyType, 0, 0), nil
 	}
 	value := reflect.MakeSlice(d.dependencyType, len(d.nodes), len(d.nodes))
 	subGroup, _ := errgroup.WithContext(ctx)
