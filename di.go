@@ -97,7 +97,10 @@ func (n *dNode) Value() (reflect.Value, error) {
 				value, err := func() (reflect.Value, error) {
 					dependency, ok := n.dependencies[argType]
 					if !ok {
-						return reflect.Value{}, fmt.Errorf(MissingDependency, argType)
+						if argType.Kind() != reflect.Slice {
+							return reflect.Value{}, fmt.Errorf(MissingDependency, argType)
+						}
+						return reflect.MakeSlice(argType, 0, 0), nil
 					}
 					if argType.Kind() != reflect.Slice {
 						nodes := dependency.nodes
