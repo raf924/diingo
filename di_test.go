@@ -23,7 +23,10 @@ func TestNewApplicationContext(t *testing.T) {
 		return dependencyType2(fmt.Sprintf("dependency2,%s", type1))
 	}
 
-	ctx := NewApplicationContext(&context{}, rootConstructor, dependencyConstructor1, dependencyConstructor2)
+	ctx, err := NewApplicationContext(&context{}, rootConstructor, dependencyConstructor1, dependencyConstructor2)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	expectedValue := "root,dependency1,dependency2,dependency1"
 	if ctx.(*context).Root != rootType(expectedValue) {
@@ -39,10 +42,15 @@ func TestNewApplicationContextWithArray(t *testing.T) {
 	var root1 = func() rootType { return "root1" }
 	var root2 = func() rootType { return "root2" }
 
-	ctx := NewApplicationContext(&context{}, root1, root2).(*context)
+	ctx, err := NewApplicationContext(&context{}, root1, root2)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	if len(ctx.Roots) != 2 || ctx.Roots[0] != "root1" || ctx.Roots[1] != "root2" {
-		t.Fatal("wrong", ctx.Roots)
+	roots := ctx.(*context).Roots
+
+	if len(roots) != 2 || roots[0] != "root1" || roots[1] != "root2" {
+		t.Fatal("wrong", roots)
 	}
 }
 
@@ -54,16 +62,10 @@ func TestNewApplicationContextMissingDependency(t *testing.T) {
 		Root2 type2
 	}
 	var root1 = func() type1 { return "root1" }
-	defer func() {
-		err := recover()
-		expectedError := fmt.Errorf(UnableToResolveDependencyCause, reflect.TypeOf(context{}), fmt.Errorf(MissingDependency, reflect.TypeOf(type2(""))))
-		if err.(error).Error() != expectedError.Error() {
-			t.Fatal("expected", expectedError, "got", err)
-		}
-	}()
-	ctx := NewApplicationContext(&context{}, root1)
-	if ctx != nil {
-		t.Fatal("should have failed")
+	_, err := NewApplicationContext(&context{}, root1)
+	expectedError := fmt.Errorf(UnableToResolveDependencyCause, reflect.TypeOf(context{}), fmt.Errorf(MissingDependency, reflect.TypeOf(type2(""))))
+	if err.(error).Error() != expectedError.Error() {
+		t.Fatal("expected", expectedError, "got", err)
 	}
 }
 
@@ -83,9 +85,13 @@ func TestNewApplicationContextWithInterfaceArray(t *testing.T) {
 		Tests []testInterface
 	}
 
-	ctx := NewApplicationContext(&context{}, func() *testType {
+	ctx, err := NewApplicationContext(&context{}, func() *testType {
 		return &testType{}
 	})
+
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	tests := ctx.(*context).Tests
 	if len(tests) != 1 {

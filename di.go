@@ -124,7 +124,14 @@ func (n *dNode) Value() (reflect.Value, error) {
 		if err := mainGroup.Wait(); err != nil {
 			return reflect.Value{}, err
 		}
-		n.value = n.constructor.Call(arguments)[0]
+		results := n.constructor.Call(arguments)
+		if len(results) > 1 {
+			err := results[1]
+			if !err.IsNil() {
+				return reflect.Value{}, err.Interface().(error)
+			}
+		}
+		n.value = results[0]
 		if !n.value.IsValid() {
 			return reflect.Value{}, fmt.Errorf(UnableToResolveDependency, n.dType)
 		}
@@ -171,7 +178,7 @@ func usableAs(typ1 reflect.Type, typ2 reflect.Type) bool {
 	return typ1.AssignableTo(typ2) || typ2.Kind() == reflect.Interface && typ1.Implements(typ2)
 }
 
-func NewApplicationContext(applicationContext interface{}, providers ...interface{}) interface{} {
+func NewApplicationContext(applicationContext interface{}, providers ...interface{}) (interface{}, error) {
 	rootType := reflect.Indirect(reflect.ValueOf(applicationContext)).Type()
 	rootNode := newRootNode(rootType)
 	constructorNodes := createProviderNodes(providers)
@@ -186,14 +193,14 @@ func NewApplicationContext(applicationContext interface{}, providers ...interfac
 	}
 	value, err := rootNode.Value()
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	if !value.IsValid() {
-		panic("failed to resolve dependencies")
+		return nil, fmt.Errorf("failed to resolve dependencies")
 	}
 	ptr := reflect.New(rootType)
 	ptr.Elem().Set(value)
-	return ptr.Interface()
+	return ptr.Interface(), err
 }
 
 func createProviderNodes(constructors []interface{}) []*dNode {
