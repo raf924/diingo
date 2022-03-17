@@ -3,6 +3,7 @@ package diingo
 import (
 	"fmt"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -96,5 +97,59 @@ func TestNewApplicationContextWithInterfaceArray(t *testing.T) {
 	tests := ctx.(*context).Tests
 	if len(tests) != 1 {
 		t.Fatal("wrong", tests)
+	}
+}
+
+func TestNewApplicationContextWithCyclicDependency(t *testing.T) {
+	type type1 string
+	type type2 string
+
+	type c struct {
+		t type1
+	}
+
+	_, err := NewApplicationContext(c{}, func(t type1) type2 {
+		return ""
+	}, func(t type2) type1 {
+		return ""
+	})
+	expectedError := fmt.Errorf(CyclicDependency, reflect.TypeOf(type1("")))
+	if !strings.Contains(err.(error).Error(), expectedError.Error()) {
+		t.Fatal("expected", expectedError, "got", err)
+	}
+}
+
+func TestNewApplicationContextWithPointer(t *testing.T) {
+	type type1 string
+	type c struct {
+		T type1
+	}
+
+	ctx, err := NewApplicationContext(&c{}, func() *type1 {
+		var s = "hullo"
+		return (*type1)(&s)
+	})
+	if err != nil {
+		t.Fatal("unexpected error", err)
+	}
+	if ctx.(*c).T != "hullo" {
+		t.Fatal("expected hullo got", ctx.(*c).T)
+	}
+}
+
+func TestNewApplicationContextWithNonPointer(t *testing.T) {
+	type type1 string
+	type c struct {
+		T *type1
+	}
+
+	ctx, err := NewApplicationContext(&c{}, func() type1 {
+		return "hullo"
+	})
+	if err != nil {
+		t.Fatal("unexpected error", err)
+	}
+	if *ctx.(*c).T != "hullo" {
+		t.Fatal("expected hullo got", ctx.(*c).T)
 	}
 }
