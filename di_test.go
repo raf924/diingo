@@ -24,14 +24,16 @@ func TestNewApplicationContext(t *testing.T) {
 		return dependencyType2(fmt.Sprintf("dependency2,%s", type1))
 	}
 
-	ctx, err := NewApplicationContext(&context{}, rootConstructor, dependencyConstructor1, dependencyConstructor2)
+	var ctx context
+
+	err := LoadDependencies(&ctx, rootConstructor, dependencyConstructor1, dependencyConstructor2)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	expectedValue := "root,dependency1,dependency2,dependency1"
-	if ctx.(*context).Root != rootType(expectedValue) {
-		t.Fatal("expected", expectedValue, "got", ctx.(context).Root)
+	if ctx.Root != rootType(expectedValue) {
+		t.Fatal("expected", expectedValue, "got", ctx.Root)
 	}
 }
 
@@ -43,12 +45,13 @@ func TestNewApplicationContextWithArray(t *testing.T) {
 	var root1 = func() rootType { return "root1" }
 	var root2 = func() rootType { return "root2" }
 
-	ctx, err := NewApplicationContext(&context{}, root1, root2)
+	var ctx context
+	err := LoadDependencies(&ctx, root1, root2)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	roots := ctx.(*context).Roots
+	roots := ctx.Roots
 
 	if len(roots) != 2 || roots[0] != "root1" || roots[1] != "root2" {
 		t.Fatal("wrong", roots)
@@ -63,7 +66,7 @@ func TestNewApplicationContextMissingDependency(t *testing.T) {
 		Root2 type2
 	}
 	var root1 = func() type1 { return "root1" }
-	_, err := NewApplicationContext(&context{}, root1)
+	err := LoadDependencies(&context{}, root1)
 	expectedError := fmt.Errorf(UnableToResolveDependencyCause, reflect.TypeOf(context{}), fmt.Errorf(MissingDependency, reflect.TypeOf(type2(""))))
 	if err.(error).Error() != expectedError.Error() {
 		t.Fatal("expected", expectedError, "got", err)
@@ -86,7 +89,8 @@ func TestNewApplicationContextWithInterfaceArray(t *testing.T) {
 		Tests []testInterface
 	}
 
-	ctx, err := NewApplicationContext(&context{}, func() *testType {
+	var ctx context
+	err := LoadDependencies(&ctx, func() *testType {
 		return &testType{}
 	})
 
@@ -94,7 +98,7 @@ func TestNewApplicationContextWithInterfaceArray(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	tests := ctx.(*context).Tests
+	tests := ctx.Tests
 	if len(tests) != 1 {
 		t.Fatal("wrong", tests)
 	}
@@ -108,7 +112,7 @@ func TestNewApplicationContextWithCyclicDependency(t *testing.T) {
 		t type1
 	}
 
-	_, err := NewApplicationContext(c{}, func(t type1) type2 {
+	err := LoadDependencies(&c{}, func(t type1) type2 {
 		return ""
 	}, func(t type2) type1 {
 		return ""
@@ -124,16 +128,16 @@ func TestNewApplicationContextWithPointer(t *testing.T) {
 	type c struct {
 		T type1
 	}
-
-	ctx, err := NewApplicationContext(&c{}, func() *type1 {
+	var ctx c
+	err := LoadDependencies(&ctx, func() *type1 {
 		var s = "hullo"
 		return (*type1)(&s)
 	})
 	if err != nil {
 		t.Fatal("unexpected error", err)
 	}
-	if ctx.(*c).T != "hullo" {
-		t.Fatal("expected hullo got", ctx.(*c).T)
+	if ctx.T != "hullo" {
+		t.Fatal("expected hullo got", ctx.T)
 	}
 }
 
@@ -142,14 +146,14 @@ func TestNewApplicationContextWithNonPointer(t *testing.T) {
 	type c struct {
 		T *type1
 	}
-
-	ctx, err := NewApplicationContext(&c{}, func() type1 {
+	var ctx c
+	err := LoadDependencies(&ctx, func() type1 {
 		return "hullo"
 	})
 	if err != nil {
 		t.Fatal("unexpected error", err)
 	}
-	if *ctx.(*c).T != "hullo" {
-		t.Fatal("expected hullo got", ctx.(*c).T)
+	if *ctx.T != "hullo" {
+		t.Fatal("expected hullo got", *ctx.T)
 	}
 }

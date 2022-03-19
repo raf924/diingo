@@ -1,3 +1,5 @@
+//go:build go1.18
+
 package diingo
 
 import (
@@ -28,6 +30,29 @@ func (p ProviderFuncWithError[T]) provide(dependencies ...any) (T, error) {
 	return p(dependencies)
 }
 
+func LoadDependencies[T any](obj *T, providers ...any) error {
+	rootType := reflect.TypeOf(obj)
+	rootNode := newFunctionNode(createConstructor(obj, rootType))
+	dependencyNodes := createDependencyNodes(providers...)
+	for _, node := range dependencyNodes {
+		node.confirmDependencyWith(rootNode)
+		for _, constructorNode := range dependencyNodes {
+			if constructorNode == node {
+				continue
+			}
+			node.confirmDependencyWith(constructorNode)
+		}
+	}
+	value, err := rootNode.Value()
+	if err != nil {
+		return err
+	}
+	if !value.IsValid() {
+		return fmt.Errorf("failed to resolve dependencies")
+	}
+	return nil
+}
+
 func createDependencyNodes[P Provider[any] | any](providers ...P) []*dNode {
 	constructorNodes := make([]*dNode, 0, len(providers))
 	for _, provider := range providers {
@@ -53,28 +78,4 @@ func createConstructor[T any](obj *T, returnType reflect.Type) reflect.Value {
 		}
 		return []reflect.Value{returnValue}
 	})
-}
-
-func LoadDependencies[T any](obj *T, providers ...any) error {
-	rootType := reflect.TypeOf(obj)
-
-	rootNode := newFunctionNode(createConstructor(obj, rootType))
-	dependencyNodes := createDependencyNodes(providers...)
-	for _, node := range dependencyNodes {
-		node.confirmDependencyWith(rootNode)
-		for _, constructorNode := range dependencyNodes {
-			if constructorNode == node {
-				continue
-			}
-			node.confirmDependencyWith(constructorNode)
-		}
-	}
-	value, err := rootNode.Value()
-	if err != nil {
-		return err
-	}
-	if !value.IsValid() {
-		return fmt.Errorf("failed to resolve dependencies")
-	}
-	return nil
 }
